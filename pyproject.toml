@@ -1,0 +1,19 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "command-review"
+version = "0.1.0"
+description = "CLI command risk reviewer for AI agents"
+requires-python = ">=3.10,<4.0.0"
+dependencies = ["openai>=1.0.0", "langgraph (>=1.2.2,<2.0.0)"]
+
+[project.scripts]
+command-review = "command_review.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+command_review = ["prompt.md"]
