@@ -124,6 +124,12 @@ Stream inspection tool calls to `stderr` as JSON lines:
 command-review --stream-tools --pretty -- bash script.sh
 ```
 
+Review a command against a project located outside the current shell directory:
+
+```bash
+command-review --cwd /path/to/project --pretty -- bash script.sh
+```
+
 Fail automation when the decision is `REJECT`:
 
 ```bash
@@ -151,7 +157,6 @@ The CLI always writes the final review JSON to `stdout`:
     "Specific risk 1",
     "Specific risk 2"
   ],
-  "safe_alternative": null,
   "reasoning": "Concise reasoning for the decision.",
   "tool_calls": [],
   "token_usage": {
@@ -195,6 +200,7 @@ Options:
   --model           Override the OpenAI-compatible model name
   --base-url        Override the OpenAI-compatible API base URL
   --prompt-file     Use a custom system prompt file
+  --cwd             Working directory for workspace inspection
 ```
 
 If no command arguments are provided, `command-review` reads the command from `stdin`.

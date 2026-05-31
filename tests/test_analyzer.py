@@ -64,7 +64,6 @@ class FakeUsageChatCompletions:
                     '{"decision":"APPROVE","risk_level":"LOW",'
                     '"summary":"Reviewed command.",'
                     '"risks":["Reviewed by model."],'
-                    '"safe_alternative":null,'
                     '"reasoning":"Model-provided decision."}'
                 )
             },
@@ -107,7 +106,6 @@ class FakeToolChatCompletions:
                     '{"decision":"APPROVE","risk_level":"LOW",'
                     '"summary":"Reviewed command.",'
                     '"risks":["Reviewed script contents."],'
-                    '"safe_alternative":null,'
                     '"reasoning":"The inspected script is read-only."}'
                 ),
                 "tool_calls": None,
@@ -153,7 +151,6 @@ def fake_client(decision, risk_level):
         f'"risk_level":"{risk_level}",'
         '"summary":"Reviewed command.",'
         '"risks":["Reviewed by model."],'
-        '"safe_alternative":null,'
         '"reasoning":"Model-provided decision."'
         '}'
     )
@@ -166,7 +163,6 @@ def fake_chat_client(decision, risk_level):
         f'"risk_level":"{risk_level}",'
         '"summary":"Reviewed command.",'
         '"risks":["Reviewed by model."],'
-        '"safe_alternative":null,'
         '"reasoning":"Model-provided decision."'
         '}'
     )
@@ -239,7 +235,6 @@ def test_uses_custom_base_url(monkeypatch):
         '"risk_level":"LOW",'
         '"summary":"Reviewed command.",'
         '"risks":["Reviewed by model."],'
-        '"safe_alternative":null,'
         '"reasoning":"Model-provided decision."'
         '}'
     )
@@ -343,7 +338,6 @@ def test_accepts_json_wrapped_in_markdown_text():
         '{"decision":"APPROVE","risk_level":"LOW",'
         '"summary":"Reviewed command.",'
         '"risks":["Reviewed by model."],'
-        '"safe_alternative":null,'
         '"reasoning":"Model-provided decision."}'
         "\n```"
     )
@@ -361,7 +355,6 @@ def test_retries_when_review_response_schema_is_invalid():
             '"risk_level":"LOW",'
             '"summary":"Reviewed command.",'
             '"risks":"Reviewed by model.",'
-            '"safe_alternative":null,'
             '"reasoning":"Model-provided decision."'
             '}',
             '{'
@@ -369,7 +362,6 @@ def test_retries_when_review_response_schema_is_invalid():
             '"risk_level":"LOW",'
             '"summary":"Reviewed command.",'
             '"risks":["Reviewed by model."],'
-            '"safe_alternative":null,'
             '"reasoning":"Model-provided decision."'
             '}',
         ]

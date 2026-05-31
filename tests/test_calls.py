@@ -5,7 +5,7 @@ import sys
 from pathlib import Path
 
 from command_review.analyzer import ReviewResult
-from command_review.calls import analyze_calls_csv
+from command_review.calls import analyze_calls_csv, build_parser
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
@@ -25,7 +25,6 @@ def result(decision):
         risk_level="LOW",
         summary="Reviewed command.",
         risks=[],
-        safe_alternative=None,
         reasoning="Test decision.",
     )
 
@@ -49,7 +48,15 @@ def test_analyzes_calls_csv_incrementally_and_persists_state(tmp_path):
         "3": {"decision": "REQUIRE_CONFIRMATION"},
     }
     assert state["require_confirmation"] == [
-        {"row_number": 3, "decision": "REQUIRE_CONFIRMATION", "command": "rm -rf tmp"}
+        {
+            "row_number": 3,
+            "decision": "REQUIRE_CONFIRMATION",
+            "risk_level": "LOW",
+            "summary": "Reviewed command.",
+            "risks": [],
+            "reasoning": "Test decision.",
+            "command": "rm -rf tmp",
+        }
     ]
     assert json.loads(state_path.read_text(encoding="utf-8")) == state
 
@@ -87,3 +94,9 @@ def test_calls_module_can_be_run_as_script():
 
     assert result.returncode == 0
     assert "command-review-calls" in result.stdout
+
+
+def test_calls_parser_accepts_cwd_alias(tmp_path):
+    args = build_parser().parse_args(["--cwd", str(tmp_path)])
+
+    assert args.workspace == str(tmp_path)

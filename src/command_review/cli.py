@@ -49,6 +49,10 @@ def build_parser() -> argparse.ArgumentParser:
         "--prompt-file",
         help="Path to a custom system prompt file. Defaults to the packaged prompt.md.",
     )
+    parser.add_argument(
+        "--cwd",
+        help="Working directory for workspace inspection. Defaults to the current directory.",
+    )
     return parser
 
 
@@ -67,6 +71,7 @@ def main(argv: list[str] | None = None) -> int:
         on_tool_call=print_tool_call if args.stream_tools else None,
         fast=args.fast,
         prompt_file=args.prompt_file,
+        workspace=args.cwd,
     )
     print(json.dumps(result.to_json_dict(), indent=2 if args.pretty else None))
 

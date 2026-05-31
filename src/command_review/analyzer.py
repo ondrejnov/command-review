@@ -48,7 +48,6 @@ REVIEW_JSON_SCHEMA: dict[str, Any] = {
         },
         "summary": {"type": "string"},
         "risks": {"type": "array", "items": {"type": "string"}},
-        "safe_alternative": {"type": ["string", "null"]},
         "reasoning": {"type": "string"},
     },
     "required": [
@@ -56,7 +55,6 @@ REVIEW_JSON_SCHEMA: dict[str, Any] = {
         "risk_level",
         "summary",
         "risks",
-        "safe_alternative",
         "reasoning",
     ],
     "additionalProperties": False,
@@ -77,7 +75,6 @@ class ReviewResult:
     risk_level: str
     summary: str
     risks: list[str]
-    safe_alternative: str | None
     reasoning: str
     tool_calls: list[dict[str, Any]] = field(default_factory=list)
     token_usage: TokenUsage = field(default_factory=TokenUsage)
@@ -185,7 +182,6 @@ def review_command(
             risk_level=result.risk_level,
             summary=result.summary,
             risks=result.risks,
-            safe_alternative=result.safe_alternative,
             reasoning=result.reasoning,
             token_usage=token_usage,
         )
@@ -199,7 +195,9 @@ def review_command(
         result = _parse_review_response(response_messages[-1].get("content", ""))
     except ValueError as exc:
         repair_messages = [*response_messages, _review_response_retry_message(exc)]
-        response = _create_model_response(client, model, repair_messages, use_tools=False)
+        response = _create_model_response(
+            client, model, repair_messages, use_tools=False
+        )
         token_usage[0] = _combine_token_usage(
             token_usage[0],
             _response_token_usage(response, repair_messages, use_tools=False),
@@ -211,7 +209,6 @@ def review_command(
         risk_level=result.risk_level,
         summary=result.summary,
         risks=result.risks,
-        safe_alternative=result.safe_alternative,
         reasoning=result.reasoning,
         tool_calls=_collect_tool_calls(response_messages),
         token_usage=token_usage[0],
@@ -230,7 +227,8 @@ def _build_review_graph(
     def call_model(state: ReviewState) -> ReviewState:
         response = _create_model_response(client, model, state["messages"])
         token_usage[0] = _combine_token_usage(
-            token_usage[0], _response_token_usage(response, state["messages"], use_tools=True)
+            token_usage[0],
+            _response_token_usage(response, state["messages"], use_tools=True),
         )
         return {"messages": [*state["messages"], _response_message(response)]}
 
@@ -349,7 +347,9 @@ def _combine_token_usage(left: TokenUsage, right: TokenUsage) -> TokenUsage:
 
 def _usage_value(usage: Any, *names: str) -> int:
     for name in names:
-        value = usage.get(name) if isinstance(usage, dict) else getattr(usage, name, None)
+        value = (
+            usage.get(name) if isinstance(usage, dict) else getattr(usage, name, None)
+        )
         if isinstance(value, int):
             return value
     return 0
@@ -530,7 +530,6 @@ def _parse_review_response(response: Any) -> ReviewResult:
         risk_level=_expect_str(payload, "risk_level"),
         summary=_expect_str(payload, "summary"),
         risks=_expect_str_list(payload, "risks"),
-        safe_alternative=_expect_optional_str(payload, "safe_alternative"),
         reasoning=_expect_str(payload, "reasoning"),
     )
 
@@ -596,13 +595,6 @@ def _expect_str(payload: dict[str, Any], key: str) -> str:
     if not isinstance(value, str):
         raise ValueError(f"OpenAI response field `{key}` must be a string.")
     return value
-
-
-def _expect_optional_str(payload: dict[str, Any], key: str) -> str | None:
-    value = payload.get(key)
-    if value is None or isinstance(value, str):
-        return value
-    raise ValueError(f"OpenAI response field `{key}` must be a string or null.")
 
 
 def _expect_str_list(payload: dict[str, Any], key: str) -> list[str]:
