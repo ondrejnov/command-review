@@ -37,6 +37,22 @@ class FakeChatCompletions:
         return type("Response", (), {"choices": [choice]})()
 
 
+class FakeRetryChatCompletions:
+    def __init__(self, output_texts):
+        self.output_texts = list(output_texts)
+        self.calls = []
+
+    def create(self, **kwargs):
+        self.calls.append(kwargs)
+        message = type(
+            "Message",
+            (),
+            {"content": self.output_texts.pop(0), "tool_calls": None},
+        )()
+        choice = type("Choice", (), {"message": message})()
+        return type("Response", (), {"choices": [choice]})()
+
+
 class FakeUsageChatCompletions:
     def create(self, **kwargs):
         self.kwargs = kwargs
@@ -110,6 +126,12 @@ class FakeOpenAIChatClient:
             (),
             {"completions": FakeChatCompletions(output_text)},
         )()
+
+
+class FakeRetryOpenAIChatClient:
+    def __init__(self, output_texts):
+        self.completions = FakeRetryChatCompletions(output_texts)
+        self.chat = type("Chat", (), {"completions": self.completions})()
 
 
 class FakeToolOpenAIChatClient:
@@ -329,3 +351,36 @@ def test_accepts_json_wrapped_in_markdown_text():
     result = review_command("git status", client=client)
 
     assert result.decision == "APPROVE"
+
+
+def test_retries_when_review_response_schema_is_invalid():
+    client = FakeRetryOpenAIChatClient(
+        [
+            '{'
+            '"decision":"APPROVE",'
+            '"risk_level":"LOW",'
+            '"summary":"Reviewed command.",'
+            '"risks":"Reviewed by model.",'
+            '"safe_alternative":null,'
+            '"reasoning":"Model-provided decision."'
+            '}',
+            '{'
+            '"decision":"APPROVE",'
+            '"risk_level":"LOW",'
+            '"summary":"Reviewed command.",'
+            '"risks":["Reviewed by model."],'
+            '"safe_alternative":null,'
+            '"reasoning":"Model-provided decision."'
+            '}',
+        ]
+    )
+
+    result = review_command("git status", client=client)
+
+    assert result.decision == "APPROVE"
+    assert result.risks == ["Reviewed by model."]
+    assert len(client.completions.calls) == 2
+    assert "tools" in client.completions.calls[0]
+    assert "tools" not in client.completions.calls[1]
+    retry_message = client.completions.calls[1]["messages"][-1]["content"]
+    assert "must always be an array" in retry_message

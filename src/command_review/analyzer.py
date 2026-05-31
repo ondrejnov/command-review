@@ -28,6 +28,12 @@ FAST_PROMPT_SUFFIX = (
     "\n\nFast mode: make a one-shot decision using only the command text and "
     "workspace path. Do not request or call tools."
 )
+REVIEW_RESPONSE_RETRY_PROMPT = (
+    "Your previous response could not be parsed as a command review result: {error}\n\n"
+    "Return only a valid JSON object matching the required schema. "
+    "The `risks` field must always be an array of strings, even when empty. "
+    "Do not include markdown, prose, or tool calls."
+)
 
 REVIEW_JSON_SCHEMA: dict[str, Any] = {
     "type": "object",
@@ -158,7 +164,22 @@ def review_command(
     if fast:
         response = _create_model_response(client, model, messages, use_tools=False)
         token_usage = _response_token_usage(response, messages, use_tools=False)
-        result = _parse_review_response(response)
+        try:
+            result = _parse_review_response(response)
+        except ValueError as exc:
+            repair_messages = [
+                *messages,
+                _response_message(response),
+                _review_response_retry_message(exc),
+            ]
+            response = _create_model_response(
+                client, model, repair_messages, use_tools=False
+            )
+            token_usage = _combine_token_usage(
+                token_usage,
+                _response_token_usage(response, repair_messages, use_tools=False),
+            )
+            result = _parse_review_response(response)
         return ReviewResult(
             decision=result.decision,
             risk_level=result.risk_level,
@@ -172,8 +193,19 @@ def review_command(
     token_usage = [TokenUsage()]
     app = _build_review_graph(client, model, workspace_path, token_usage, on_tool_call)
     state = app.invoke({"messages": messages})
+    response_messages = state["messages"]
 
-    result = _parse_review_response(state["messages"][-1].get("content", ""))
+    try:
+        result = _parse_review_response(response_messages[-1].get("content", ""))
+    except ValueError as exc:
+        repair_messages = [*response_messages, _review_response_retry_message(exc)]
+        response = _create_model_response(client, model, repair_messages, use_tools=False)
+        token_usage[0] = _combine_token_usage(
+            token_usage[0],
+            _response_token_usage(response, repair_messages, use_tools=False),
+        )
+        response_messages = [*repair_messages, _response_message(response)]
+        result = _parse_review_response(response)
     return ReviewResult(
         decision=result.decision,
         risk_level=result.risk_level,
@@ -181,7 +213,7 @@ def review_command(
         risks=result.risks,
         safe_alternative=result.safe_alternative,
         reasoning=result.reasoning,
-        tool_calls=_collect_tool_calls(state["messages"]),
+        tool_calls=_collect_tool_calls(response_messages),
         token_usage=token_usage[0],
     )
 
@@ -363,6 +395,13 @@ def _response_message(response: Any) -> dict[str, Any]:
         return result
 
     return {"role": "assistant", "content": _response_text(response)}
+
+
+def _review_response_retry_message(exc: ValueError) -> dict[str, str]:
+    return {
+        "role": "user",
+        "content": REVIEW_RESPONSE_RETRY_PROMPT.format(error=str(exc)),
+    }
 
 
 def _serialize_tool_call(tool_call: Any) -> dict[str, Any]:

@@ -69,7 +69,7 @@ Examples:
 Decision rules:
 - APPROVE only LOW-risk commands.
 - APPROVE MEDIUM-risk commands only if the target is specific, the intent is clear, and the command is reversible or low-impact.
-- REQUIRE_CONFIRMATION for MEDIUM or HIGH risk when the command may be legitimate but has meaningful side effects.
+- REQUIRE_CONFIRMATION for HIGH risk when the command may be legitimate but has meaningful side effects.
 - REJECT CRITICAL commands.
 - REJECT any command that appears malicious, stealthy, exfiltrating, or intentionally destructive.
 - REJECT commands that execute remote code without verification.
